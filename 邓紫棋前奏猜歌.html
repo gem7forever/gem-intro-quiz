@@ -1,0 +1,1399 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<title>邓紫棋前奏猜歌</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #15161d;
+    --surface-2: #1e2029;
+    --line:      #2a2d3a;
+    --text:      #eceef5;
+    --muted:     #8b8fa3;
+    --accent:    #f5b942;
+    --accent-dim:#6b5220;
+    --danger:    #e5484d;
+    --ok:        #46a758;
+    --radius:    16px;
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    justify-content: center;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -20% -20% auto -20%;
+    height: 60vh;
+    background: radial-gradient(circle at 50% 0%, rgba(245,185,66,.13), transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 480px;
+    padding: max(20px, env(safe-area-inset-top)) 20px
+             max(24px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ── 头部 ───────────────────────────── */
+  header { text-align: center; }
+  h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .02em; }
+  .sub { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+  .badge {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 3px 9px;
+    border: 1px solid var(--accent-dim);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  /* ── 播放器 ─────────────────────────── */
+  .player {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .play {
+    position: relative;
+    width: 104px;
+    height: 104px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(160deg, #ffd166, var(--accent) 55%, #d99a1f);
+    color: #1a1400;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    touch-action: manipulation;
+    transition: transform .12s ease, box-shadow .25s ease;
+    box-shadow: 0 8px 24px -8px rgba(245,185,66,.55);
+  }
+  .play:active { transform: scale(.95); }
+  .play.playing {
+    box-shadow: 0 0 0 10px rgba(245,185,66,.08),
+                0 0 0 20px rgba(245,185,66,.04);
+  }
+  .play svg { width: 34px; height: 34px; margin-left: 4px; }
+  .play.playing svg { display: none; }
+  .play:disabled { opacity: .45; }
+
+  .viz {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 56px;
+    width: 100%;
+  }
+  .viz i {
+    display: block;
+    width: 3px;
+    height: 6px;
+    border-radius: 2px;
+    background: var(--line);
+    transition: height .07s linear, background .15s ease;
+  }
+  .viz i.on { background: var(--accent); }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .meta .sep { opacity: .4; }
+
+  /* ── 机会 ───────────────────────────── */
+  .chances {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .dots { display: flex; gap: 8px; }
+  .dots i {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--accent);
+    transition: background .25s ease, transform .25s ease;
+  }
+  .dots i.lost { background: var(--surface-2); transform: scale(.72); }
+
+  /* ── 搜索框 ─────────────────────────── */
+  .guess { position: relative; display: flex; gap: 10px; }
+  .field { position: relative; flex: 1; }
+
+  input[type="text"] {
+    width: 100%;
+    height: 50px;
+    padding: 0 16px;
+    font-size: 16px;            /* < 16px 会让 iOS 聚焦时放大页面 */
+    font-family: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    outline: none;
+    transition: border-color .2s ease;
+    -webkit-appearance: none;
+  }
+  input[type="text"]::placeholder { color: #5c6076; }
+  input[type="text"]:focus { border-color: var(--accent); }
+  input[type="text"]:disabled { opacity: .5; }
+
+  .submit {
+    height: 50px;
+    padding: 0 20px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    color: #1a1400;
+    background: var(--accent);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform .12s ease;
+  }
+  .submit:active { transform: scale(.97); }
+
+  .suggest {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 16px 32px -12px #000;
+    max-height: 232px;
+    overflow-y: auto;
+    z-index: 20;
+    display: none;
+  }
+  .suggest.open { display: block; }
+  .suggest li {
+    padding: 11px 12px;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .suggest li:hover { background: #2a2d3a; }
+  .suggest li .hint {
+    float: right;
+    font-size: 12px;
+    color: var(--muted);
+    padding-top: 2px;
+  }
+
+  /* ── 跳过 ───────────────────────────── */
+  .skip {
+    align-self: center;
+    padding: 11px 22px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: color .2s, border-color .2s;
+  }
+  .skip:active { color: var(--text); border-color: var(--muted); }
+
+  /* ── 提示 ───────────────────────────── */
+  .hint-line {
+    margin: -6px 0 0;
+    padding: 12px 16px;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--accent);
+    background: rgba(245,185,66,.07);
+    border: 1px solid var(--accent-dim);
+    border-radius: 12px;
+    animation: hintIn .22s ease;
+  }
+  @keyframes hintIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+  .ghost.sm {
+    height: 42px;
+    padding: 0 20px;
+    font-size: 14px;
+    border-radius: 999px;
+    color: var(--muted);
+  }
+  .ghost.sm:active { color: var(--text); }
+  .ghost.sm:disabled { opacity: .35; }
+
+  .foot {
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.7;
+    color: #4d5163;
+  }
+
+  /* ── 统计条 ─────────────────────────── */
+  .stats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .stats b {
+    color: var(--text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .stats i { font-style: normal; opacity: .35; }
+  .stats .reset {
+    margin-left: 4px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .stats .reset:active { color: var(--text); }
+
+  /* ── 空曲库 ─────────────────────────── */
+  [hidden] { display: none !important; }
+
+  .empty {
+    padding: 40px 22px;
+    text-align: center;
+    background: var(--surface);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+  }
+  .empty p { margin: 0; font-size: 15px; }
+  .empty p + p {
+    margin-top: 10px;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--muted);
+  }
+  .empty code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    font-size: 11px;
+  }
+
+  /* ── 开局选难度 ─────────────────────── */
+  .start {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(6, 6, 10, .92);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    transition: opacity .3s ease, visibility .3s;
+  }
+  .start.hide { opacity: 0; visibility: hidden; }
+
+  .start-card { width: 100%; max-width: 400px; text-align: center; }
+  .start-card .lead {
+    margin: 0;
+    font-size: 11px;
+    letter-spacing: .14em;
+    color: var(--muted);
+  }
+  .start-card h2 { margin: 8px 0 24px; font-size: 22px; font-weight: 700; }
+
+  .tiers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tiers button {
+    padding: 18px 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    color: var(--text);
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: border-color .2s, transform .12s;
+  }
+  .tiers button:active { transform: scale(.96); }
+  .tiers button:hover { border-color: var(--accent-dim); }
+  .tiers b {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .tiers span { display: block; margin-top: 5px; font-size: 12px; color: var(--muted); }
+  /* 噩梦档单独占一整行，压在最上面 */
+  .tiers button[data-tier="0"] { grid-column: 1 / -1; }
+  .tiers button[data-tier="0"] b { color: #ff5d8f; }
+  .tiers button[data-tier="1"] b { color: #ff7b7e; }
+  .tiers button[data-tier="2"] b { color: #f5b942; }
+  .tiers button[data-tier="3"] b { color: #7dd3a0; }
+  .tiers button[data-tier="4"] b { color: #8bb0ff; }
+
+  .start-note {
+    margin: 22px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .tier-btn {
+    margin-left: 2px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--accent);
+    background: transparent;
+    border: 1px solid var(--accent-dim);
+    border-radius: 999px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .tier-btn:active { opacity: .6; }
+
+  /* ── 揭晓层 ─────────────────────────── */
+  .reveal {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(6, 6, 10, .78);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .26s ease, visibility .26s;
+  }
+  .reveal.show { opacity: 1; visibility: visible; }
+
+  .card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 26px 22px 22px;
+    text-align: center;
+    transform: translateY(14px) scale(.98);
+    transition: transform .28s cubic-bezier(.2,.8,.3,1);
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+  }
+  .reveal.show .card { transform: none; }
+
+  .kicker {
+    margin: 0 0 10px;
+    font-size: 12px;
+    letter-spacing: .12em;
+    color: var(--muted);
+  }
+  .kicker.win  { color: var(--ok); }
+  .kicker.lose { color: var(--danger); }
+
+  .card h2 {
+    margin: 0 0 6px;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 12px; }
+  .tags span {
+    padding: 3px 9px;
+    font-size: 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .tags span.hot { border-color: var(--accent-dim); color: var(--accent); }
+
+  .facts {
+    margin: 18px 0 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 14px;
+    text-align: left;
+    font-size: 13px;
+  }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0; color: var(--text); }
+
+  .guesses {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    text-align: left;
+  }
+  .guesses p {
+    margin: 0 0 8px;
+    font-size: 11px;
+    letter-spacing: .08em;
+    color: var(--muted);
+  }
+  .guesses ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .guesses li {
+    font-size: 14px;
+    padding: 8px 12px;
+    border-radius: 9px;
+    background: var(--surface-2);
+  }
+  .guesses li.bad  { color: #ff9a9d; }
+  .guesses li em {
+    font-style: normal;
+    font-size: 11px;
+    color: var(--muted);
+    float: right;
+  }
+
+  .next {
+    margin-top: 22px;
+    width: 100%;
+    height: 50px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    color: #1a1400;
+    background: var(--accent);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  /* ── 揭晓页：听全曲 + 新开一局 ───────── */
+  .ghost {
+    height: 50px;
+    padding: 0 18px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    cursor: pointer;
+    touch-action: manipulation;
+    white-space: nowrap;
+  }
+  .ghost:active { border-color: var(--muted); }
+  .ghost.playing { border-color: var(--accent-dim); color: var(--accent); }
+
+  .r-audio {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .r-audio .ghost { height: 40px; padding: 0 14px; font-size: 13px; }
+
+  .r-progress {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .r-progress i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width .15s linear;
+  }
+  .r-time {
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 62px;
+    text-align: right;
+  }
+
+  .r-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+  }
+  .r-actions .next {
+    margin-top: 0;
+    width: auto;
+    flex: 1;
+  }
+  .next:active { transform: scale(.98); }
+
+  /* ── Toast ──────────────────────────── */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(28px + env(safe-area-inset-bottom));
+    transform: translate(-50%, 16px);
+    padding: 12px 20px;
+    font-size: 14px;
+    border-radius: 999px;
+    background: #23262f;
+    border: 1px solid var(--line);
+    box-shadow: 0 12px 32px -10px #000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+    white-space: nowrap;
+    max-width: calc(100vw - 40px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 80;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.ok  { border-color: var(--ok);     color: #9ee0ab; }
+  .toast.bad { border-color: var(--danger); color: #ff9a9d; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>邓紫棋前奏猜歌</h1>
+    <p class="sub">听一段片段，猜出歌名</p>
+    <span class="badge" id="libBadge">曲库载入中…</span>
+  </header>
+
+  <div class="stats" id="stats">
+    <span>猜中 <b id="stHit">0</b></span>
+    <i>·</i>
+    <span>失败 <b id="stMiss">0</b></span>
+    <i>·</i>
+    <span>跳过 <b id="stSkip">0</b></span>
+    <button class="reset" id="stReset" type="button">清零</button>
+  </div>
+
+  <div class="empty" id="empty" hidden>
+    <p>还没有可玩的曲目</p>
+    <p>
+      去 <code>songs.js</code> 里给歌曲填上 <code>audio</code> 字段，<br>
+      再把切片放进 <code>clips/</code>，刷新即可。
+    </p>
+  </div>
+
+  <section class="player">
+    <button class="play" id="playBtn" aria-label="播放片段">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14z"/>
+      </svg>
+    </button>
+
+    <div class="viz" id="viz" aria-hidden="true"></div>
+
+    <div class="meta">
+      <span id="clipLen">3.0s</span>
+      <span class="sep">·</span>
+      <span id="diffLabel">档位 3</span>
+      <button class="tier-btn" id="tierBtn" type="button">换档位</button>
+    </div>
+  </section>
+
+  <div class="chances">
+    <span>剩余机会</span>
+    <span class="dots" id="dots"><i></i><i></i><i></i></span>
+  </div>
+
+  <form class="guess" id="guessForm" autocomplete="off">
+    <div class="field">
+      <input type="text" id="guessInput" placeholder="输入歌名…"
+             inputmode="search" enterkeyhint="send" aria-label="输入歌名">
+      <ul class="suggest" id="suggest"></ul>
+    </div>
+    <button type="submit" class="submit">提交</button>
+  </form>
+
+  <p class="hint-line" id="hintLine" hidden></p>
+
+  <div class="actions">
+    <button class="ghost sm" id="hintBtn" type="button">提示</button>
+    <button class="ghost sm" id="skipBtn" type="button">跳过这首</button>
+  </div>
+
+  <p class="foot">
+    跳过不扣机会 · 每题可无限重听<br>
+    换歌或重听都不限次数
+  </p>
+
+</div>
+
+<aside class="reveal" id="reveal" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="card">
+    <p class="kicker" id="rKicker"></p>
+    <h2 id="rTitle"></h2>
+    <div class="tags" id="rTags"></div>
+    <dl class="facts" id="rFacts"></dl>
+    <div class="guesses" id="rGuesses"></div>
+
+    <div class="r-audio" id="rAudio" hidden>
+      <button class="ghost" id="fullBtn" type="button">听全曲</button>
+      <div class="r-progress"><i id="fullBar"></i></div>
+      <span class="r-time" id="fullTime">0:00</span>
+    </div>
+
+    <div class="r-actions">
+      <button class="ghost" id="rRestart" type="button">新开一局</button>
+      <button class="next" id="rNext" type="button">下一首</button>
+    </div>
+  </div>
+</aside>
+
+<aside class="start" id="start" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+  <div class="start-card">
+    <p class="lead">选择难度</p>
+    <h2 id="startTitle">片段放多长？</h2>
+    <div class="tiers" id="tiers">
+      <button type="button" data-tier="0"><b>0.3s</b><span>噩梦</span></button>
+      <button type="button" data-tier="1"><b>0.5s</b><span>地狱</span></button>
+      <button type="button" data-tier="2"><b>1.0s</b><span>困难</span></button>
+      <button type="button" data-tier="3"><b>3.0s</b><span>普通</span></button>
+      <button type="button" data-tier="4"><b>10s</b><span>简单</span></button>
+    </div>
+    <p class="start-note">
+      每题 3 次机会 · 跳过不扣次数<br>
+      档位决定每次播放的片段有多长
+    </p>
+  </div>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="songs.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  /* ── 难度档 → 秒数（改这里就能调档，数据不用动） ───────── */
+  /* 0 = 噩梦档，刻意排在 1–4 之前，不打乱原有编号 */
+  const DIFF_SEC = { 0: 0.3, 1: 0.5, 2: 1, 3: 3, 4: 10 };
+  const TOTAL_CHANCES = 3;
+
+  /* ── 曲库来自 songs.js ────────────────────────────────
+     普通 <script src> 在 file:// 下能加载，fetch(文件) 不能。
+     这里过滤掉缺字段的记录，防止手写 songs.js 漏字段把页面搞崩。 */
+  const SONGS = (window.SONGS || []).filter(
+    (s) => s && typeof s === 'object' && s.id && s.title
+  );
+
+  const $ = (id) => document.getElementById(id);
+  const playBtn = $('playBtn');
+  const viz = $('viz');
+  const clipLen = $('clipLen');
+  const diffLbl = $('diffLabel');
+  const dots = $('dots');
+  const guessForm = $('guessForm');
+  const guessInput = $('guessInput');
+  const suggest = $('suggest');
+  const skipBtn = $('skipBtn');
+  const hintBtn = $('hintBtn');
+  const hintLine = $('hintLine');
+  const toastEl = $('toast');
+  const reveal = $('reveal');
+  const rKicker = $('rKicker');
+  const rTitle = $('rTitle');
+  const rTags = $('rTags');
+  const rFacts = $('rFacts');
+  const rGuesses = $('rGuesses');
+  const rNext = $('rNext');
+  const startScreen = $('start');
+  const tiers = $('tiers');
+  const tierBtn = $('tierBtn');
+  const rAudio = $('rAudio');
+  const fullBtn = $('fullBtn');
+  const fullBar = $('fullBar');
+  const fullTime = $('fullTime');
+  const rRestart = $('rRestart');
+
+  /* ── 音频 ─────────────────────────────────────────────── */
+  const audio = new Audio();
+  audio.preload = 'auto';
+
+  /* 揭晓页的"听全曲"，和片段播放器互相独立。
+     preload=metadata：只拉文件头拿时长（几 KB），
+     点播放时不用再等完整 8MB 才开始。 */
+  const fullAudio = new Audio();
+  fullAudio.preload = 'metadata';
+
+  /* ── 状态 ─────────────────────────────────────────────── */
+  const state = {
+    song: null,
+    tier: null,          // 玩家选的难度档 1–4，决定片段长度
+    chances: TOTAL_CHANCES,
+    wrong: [],
+    playing: false,
+    solved: false,
+    hint: 0,             // 0 未用 / 1 已给年份 / 2 已给收录 / 3 已看答案
+    rafId: 0,
+  };
+
+  /* 片段长度由玩家选的档位决定。
+     歌曲自带的 difficulty 只作为"建议档位"在揭晓页展示。 */
+  /* 注意 tier 可能是 0（噩梦），所以用 ?? 而不是 || */
+  const tierSec = () => DIFF_SEC[state.tier] ?? DIFF_SEC[3];
+
+  const clipPath = (song) => song.audio + '.' + tierSec() + 's.mp3';
+
+  /* ── 可玩池 & 不重复抽题 ──────────────────────────────────
+     用"洗牌袋"而不是"排除上一首"：每轮把可玩曲目洗一遍，
+     逐个取出，取空再洗。保证每首歌在你玩完一轮前不会重复。 */
+  const playable = () => SONGS.filter((s) => s.audio);
+
+  let bag = [];
+  let lastShown = null;
+
+  function refillBag() {
+    bag = playable().map((s) => s.id);
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+    /* 洗牌袋的边界 bug：上一袋的最后一首可能等于新袋的最后一首
+       （pop 从尾部取），造成同一首连播。把新袋尾项换个位置。 */
+    if (bag.length > 1 && bag[bag.length - 1] === lastShown) {
+      const j = Math.floor(Math.random() * (bag.length - 1));
+      [bag[bag.length - 1], bag[j]] = [bag[j], bag[bag.length - 1]];
+    }
+  }
+
+  function pickSong() {
+    if (bag.length === 0) refillBag();
+    const id = bag.pop();
+    lastShown = id;
+    return playable().find((s) => s.id === id) || null;
+  }
+
+  /* ── 统计（localStorage 持久化） ────────────────────────── */
+  const STAT_KEY = 'gem-heardle-stats.v1';
+  const stats = loadStats();
+
+  function loadStats() {
+    const blank = { hit: 0, miss: 0, skip: 0 };
+    try {
+      const o = JSON.parse(localStorage.getItem(STAT_KEY) || 'null');
+      if (!o || typeof o !== 'object') return blank;
+      return {
+        hit:  Number(o.hit)  || 0,
+        miss: Number(o.miss) || 0,
+        skip: Number(o.skip) || 0,
+      };
+    } catch (e) {
+      return blank;
+    }
+  }
+
+  function saveStats() {
+    try {
+      localStorage.setItem(STAT_KEY, JSON.stringify(stats));
+    } catch (e) { /* 隐私模式 / 配额满，静默降级 */ }
+  }
+
+  function renderStats() {
+    $('stHit').textContent = stats.hit;
+    $('stMiss').textContent = stats.miss;
+    $('stSkip').textContent = stats.skip;
+  }
+
+  function bump(key) {
+    stats[key] += 1;
+    renderStats();
+    saveStats();
+  }
+
+  /* 0.5s 这种非整数档显示成 "0.5s"，整数档显示成 "3.0s" */
+  const fmt  = (s) => (s % 1 === 0 ? s.toFixed(1) : String(s)) + 's';
+  const fmtT = (s) => (s < 10 ? s.toFixed(2) : s.toFixed(1));
+
+  /* ── 波形 ─────────────────────────────────────────────── */
+  const BAR_COUNT = 34;
+  let heights = [];
+  let vizBars = [];
+
+  function seedHeights(id) {
+    let seed = 0;
+    for (const ch of id) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+    return Array.from({ length: BAR_COUNT }, (_, i) => {
+      const x = Math.sin(seed++ * 12.9898) * 43758.5453;
+      return 5 + Math.round((x - Math.floor(x)) * 26);
+    });
+  }
+
+  function buildViz(song) {
+    heights = seedHeights(song.id);
+    viz.innerHTML = '';
+    vizBars = heights.map(() => {
+      const bar = document.createElement('i');
+      viz.appendChild(bar);
+      return bar;
+    });
+  }
+
+  function paintViz(progress) {
+    const cut = progress * BAR_COUNT;
+    vizBars.forEach((bar, i) => {
+      const lit = progress > 0 && i < cut;
+      bar.classList.toggle('on', lit);
+      bar.style.height = lit ? heights[i] + 'px' : '6px';
+    });
+  }
+
+  /* ── 播放 ─────────────────────────────────────────────── */
+  function playClip() {
+    if (state.playing || state.solved) return;
+
+    audio.currentTime = 0;
+    const sec = tierSec();
+
+    const p = audio.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => {
+        toast('播放失败，试试用本地服务器打开');
+        resetPlayUI();
+      });
+    }
+
+    state.playing = true;
+    playBtn.classList.add('playing');
+
+    const tick = () => {
+      if (!state.playing) return;
+      const dur = (isFinite(audio.duration) && audio.duration > 0)
+        ? audio.duration : sec;
+      const t = Math.min(audio.currentTime || 0, dur);
+      paintViz(t / dur);
+      clipLen.textContent = fmtT(t) + ' / ' + fmt(dur);
+      if (t < dur) {
+        state.rafId = requestAnimationFrame(tick);
+      }
+    };
+    state.rafId = requestAnimationFrame(tick);
+  }
+
+  function resetPlayUI() {
+    cancelAnimationFrame(state.rafId);
+    state.playing = false;
+    playBtn.classList.remove('playing');
+    paintViz(0);
+    if (state.song) {
+      clipLen.textContent = fmt(tierSec());
+    }
+  }
+
+  audio.addEventListener('ended', resetPlayUI);
+
+  /* 某首歌缺这一档的切片时，别让按钮点了没反应 */
+  audio.addEventListener('error', () => {
+    if (!state.song || !audio.src) return;
+    toast('这首缺 ' + fmt(tierSec()) + ' 档的切片', 'bad');
+    resetPlayUI();
+  });
+
+  /* ── 揭晓页：听全曲 ───────────────────────────────────── */
+  const mmss = (t) => {
+    if (!isFinite(t) || t < 0) t = 0;
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return m + ':' + String(s).padStart(2, '0');
+  };
+
+  function resetFullUI() {
+    fullBtn.textContent = '听全曲';
+    fullBtn.classList.remove('playing');
+    fullBar.style.width = '0%';
+    fullTime.textContent = '0:00';
+  }
+
+  function stopFull() {
+    if (!fullAudio.paused) fullAudio.pause();
+    try { fullAudio.currentTime = 0; } catch (e) { /* 未加载 */ }
+    resetFullUI();
+  }
+
+  function loadFull(song) {
+    stopFull();
+    if (song && song.full) {
+      rAudio.hidden = false;
+      fullTime.textContent = '加载中…';
+      fullAudio.src = song.full;
+      fullAudio.load();
+    } else {
+      fullAudio.removeAttribute('src');
+      rAudio.hidden = true;
+    }
+  }
+
+  fullBtn.addEventListener('click', () => {
+    if (!fullAudio.src) return;
+    if (fullAudio.paused) {
+      const p = fullAudio.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => { toast('全曲播放失败', 'bad'); resetFullUI(); });
+      }
+    } else {
+      fullAudio.pause();
+    }
+  });
+
+  /* 按钮文字跟着真实播放状态走，播放失败时不会卡在"暂停" */
+  fullAudio.addEventListener('play', () => {
+    fullBtn.textContent = '暂停';
+    fullBtn.classList.add('playing');
+  });
+  fullAudio.addEventListener('pause', () => {
+    fullBtn.textContent = '听全曲';
+    fullBtn.classList.remove('playing');
+  });
+
+  fullAudio.addEventListener('timeupdate', () => {
+    const d = fullAudio.duration;
+    if (!isFinite(d) || d <= 0) return;
+    fullBar.style.width = (fullAudio.currentTime / d) * 100 + '%';
+    fullTime.textContent = mmss(fullAudio.currentTime) + ' / ' + mmss(d);
+  });
+
+  function showFullDuration() {
+    if (isFinite(fullAudio.duration) && fullAudio.duration > 0) {
+      fullTime.textContent = '0:00 / ' + mmss(fullAudio.duration);
+    }
+  }
+
+  fullAudio.addEventListener('loadedmetadata', showFullDuration);
+  fullAudio.addEventListener('durationchange', showFullDuration);
+
+  fullAudio.addEventListener('ended', resetFullUI);
+
+  fullAudio.addEventListener('error', () => {
+    if (!fullAudio.src) return;
+    toast('全曲加载失败', 'bad');
+    resetFullUI();
+  });
+
+  /* ── 渲染 ─────────────────────────────────────────────── */
+  function renderMeta() {
+    const sec = tierSec();
+    clipLen.textContent = fmt(sec);
+    diffLbl.textContent = '档位 ' + state.tier;
+    [...dots.children].forEach((d, i) => {
+      d.classList.toggle('lost', i >= state.chances);
+    });
+  }
+
+  /* ── Toast ────────────────────────────────────────────── */
+  let toastTimer = 0;
+  function toast(msg, kind) {
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show' + (kind ? ' ' + kind : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.className = 'toast'; }, 2200);
+  }
+
+  /* ── 出题 ─────────────────────────────────────────────── */
+  function nextSong() {
+    resetPlayUI();
+    stopFull();
+    reveal.classList.remove('show');
+    reveal.setAttribute('aria-hidden', 'true');
+
+    if (state.tier === null) return;   // 还没选难度，等选完再出题
+
+    const pick = pickSong();
+
+    if (!pick) {
+      showEmpty();
+      return;
+    }
+
+    state.song = pick;
+    state.chances = TOTAL_CHANCES;
+    state.wrong = [];
+    state.solved = false;
+    state.hint = 0;
+    hintLine.hidden = true;
+    hintLine.textContent = '';
+    hintBtn.textContent = '提示';
+    hintBtn.disabled = false;
+
+    audio.src = clipPath(pick);
+    audio.load();
+
+    guessInput.value = '';
+    guessInput.disabled = false;
+    closeSuggest();
+
+    buildViz(pick);
+    renderMeta();
+  }
+
+  function showEmpty() {
+    document.querySelector('.player').hidden = true;
+    document.querySelector('.chances').hidden = true;
+    guessForm.hidden = true;
+    skipBtn.hidden = true;
+    $('empty').hidden = false;
+    $('libBadge').textContent = '曲库为空';
+  }
+
+  /* ── 匹配 ───────────────────────────────────────────────
+     不猜、不扩展。只有三层：
+       1. 归一化（大小写 / 全角 / 标点 / 空格 / 声调一律抹平）
+       2. 一张极小的等价表（you→u、&→and）
+       3. titleAlt 里手写的别名，精确比对
+     拼音、拼音缩写**不支持**——那是无限扩张的坑，不是容错。 */
+
+  function toHalfWidth(s) {
+    return String(s)
+      .replace(/[\uFF01-\uFF5E]/g, (c) =>
+        String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+      .replace(/\u3000/g, ' ');
+  }
+
+  function norm(s) {
+    return toHalfWidth(s)
+      .normalize('NFKC')          // Ⅱ → II、全角 → 半角
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')     // 去掉变音符号
+      .replace(/&/g, 'and')                // & = and
+      .replace(/you/g, 'u')                // you = u
+      .replace(/[^0-9a-z\u4e00-\u9fff]/g, '');
+  }
+
+  function isCorrect(song, input) {
+    const v = norm(input);
+    if (!v) return false;
+    return [song.title, ...(song.titleAlt || [])].some((t) => norm(t) === v);
+  }
+
+  /* ── 候选列表 ─────────────────────────────────────────── */
+  /* 收录类型：按"最终被收录进什么"分类。
+     single 专指从未被任何专辑/EP 收录的单曲。
+     show = 综艺现场，节目与期数在 source 里。 */
+  const RELEASE_LABEL = { album: '专辑', ep: 'EP', single: '单曲', show: '综艺' };
+
+  /* 提示里"收录"那一行怎么写。
+     album/ep 给专辑名；single 和综艺都只说「单曲」。 */
+  function releaseHint(s) {
+    if (s.release === 'album' && s.album) return '专辑《' + s.album + '》';
+    if (s.release === 'ep' && s.album) return 'EP《' + s.album + '》';
+    return '单曲';
+  }
+
+  /* ── 提示：年份 → 收录 → 看答案 ─────────────────────────── */
+  function showHint() {
+    if (state.solved || !state.song) return;
+
+    state.hint += 1;
+    const s = state.song;
+
+    if (state.hint >= 3) {
+      state.hint = 3;
+      state.solved = true;
+      resetPlayUI();
+      guessInput.disabled = true;
+      hintBtn.disabled = true;
+      bump('miss');
+      revealCard(false, 'giveup');
+      return;
+    }
+
+    hintLine.hidden = false;
+    hintLine.textContent = state.hint === 1
+      ? s.year + ' 年'
+      : s.year + ' 年 · ' + releaseHint(s);
+    hintBtn.textContent = state.hint === 1 ? '提示 1/2' : '看答案';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+    );
+  }
+
+  function openSuggest(q) {
+    const v = norm(q);
+    if (!v) return closeSuggest();
+
+    const hits = SONGS
+      .filter((s) => [s.title, ...s.titleAlt].some((t) => norm(t).includes(v)))
+      .slice(0, 6);
+
+    if (!hits.length) return closeSuggest();
+
+    suggest.innerHTML = '';
+    hits.forEach((s) => {
+      const li = document.createElement('li');
+      const hint = String(s.year || '');
+      li.innerHTML =
+        '<span>' + escapeHtml(s.title) + '</span>' +
+        (hint ? '<span class="hint">' + escapeHtml(hint) + '</span>' : '');
+      li.addEventListener('mousedown', (e) => e.preventDefault());
+      li.addEventListener('click', () => {
+        guessInput.value = s.title;
+        closeSuggest();
+        guessInput.focus();
+      });
+      suggest.appendChild(li);
+    });
+    suggest.classList.add('open');
+  }
+
+  function closeSuggest() {
+    suggest.classList.remove('open');
+    suggest.innerHTML = '';
+  }
+
+  /* ── 揭晓 ───────────────────────────────────────────────
+     reason: 'win' | 'lose' | 'giveup'（提示按到第三次） */
+  function revealCard(win, reason) {
+    const s = state.song;
+
+    if (win) {
+      const n = TOTAL_CHANCES - state.chances + 1;
+      rKicker.textContent = n === 1 ? '一次就中' : '第 ' + n + ' 次猜中';
+    } else if (reason === 'giveup') {
+      rKicker.textContent = '看了答案';
+    } else {
+      rKicker.textContent = '机会用完';
+    }
+    rKicker.className = 'kicker ' + (win ? 'win' : 'lose');
+    rTitle.textContent = s.title;
+
+    const tags = [];
+    if (s.release) {
+      tags.push({ t: RELEASE_LABEL[s.release] || s.release, hot: s.release === 'show' });
+    }
+    rTags.innerHTML = tags
+      .map((x) => '<span class="' + (x.hot ? 'hot' : '') + '">' +
+                  escapeHtml(x.t) + '</span>')
+      .join('');
+
+    const facts = [];
+    if (s.release === 'show') {
+      if (s.source) facts.push(['来源', s.source]);
+    } else if (s.album) {
+      facts.push([RELEASE_LABEL[s.release] || '收录', s.album]);
+    } else if (s.release === 'single') {
+      facts.push(['收录', '单曲 · 未收录专辑']);
+    }
+    if (s.year) facts.push(['年份', String(s.year)]);
+    facts.push(['建议档位', '档位 ' + s.difficulty + ' · ' + fmt(DIFF_SEC[s.difficulty])]);
+    facts.push(['本局档位', '档位 ' + state.tier + ' · ' + fmt(tierSec())]);
+    rFacts.innerHTML = facts
+      .map(([k, v]) => '<dt>' + escapeHtml(k) + '</dt><dd>' +
+                       escapeHtml(v) + '</dd>')
+      .join('');
+
+    if (state.wrong.length) {
+      rGuesses.innerHTML =
+        '<p>你的猜测</p><ul>' +
+        state.wrong
+          .map((g) => '<li class="bad">' + escapeHtml(g) + '<em>×</em></li>')
+          .join('') +
+        '</ul>';
+    } else {
+      rGuesses.innerHTML = '<p>一次没猜错</p>';
+    }
+
+    loadFull(s);
+
+    reveal.classList.add('show');
+    reveal.setAttribute('aria-hidden', 'false');
+    rNext.focus({ preventScroll: true });
+  }
+
+  /* ── 提交 ─────────────────────────────────────────────── */
+  function submitGuess() {
+    if (state.solved || !state.song) return;
+
+    const value = guessInput.value.trim();
+    if (!value) {
+      toast('先输入一个歌名');
+      return;
+    }
+
+    closeSuggest();
+
+    if (isCorrect(state.song, value)) {
+      state.solved = true;
+      resetPlayUI();
+      guessInput.disabled = true;
+      bump('hit');
+      revealCard(true);
+      return;
+    }
+
+    state.wrong.push(value);
+    state.chances -= 1;
+    renderMeta();
+
+    if (state.chances > 0) {
+      toast('不是这首 · 还剩 ' + state.chances + ' 次', 'bad');
+    } else {
+      state.solved = true;
+      resetPlayUI();
+      guessInput.disabled = true;
+      bump('miss');
+      revealCard(false);
+    }
+  }
+
+  /* ── 事件 ─────────────────────────────────────────────── */
+  playBtn.addEventListener('click', playClip);
+
+  guessForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitGuess();
+  });
+
+  guessInput.addEventListener('input', () => openSuggest(guessInput.value));
+  guessInput.addEventListener('focus', () => {
+    if (guessInput.value) openSuggest(guessInput.value);
+  });
+  guessInput.addEventListener('blur', () => setTimeout(closeSuggest, 120));
+  guessInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSuggest();
+  });
+
+  hintBtn.addEventListener('click', showHint);
+
+  skipBtn.addEventListener('click', () => {
+    if (state.solved) return;
+    bump('skip');
+    nextSong();
+    toast('已跳过 · 不扣机会');
+  });
+
+  rNext.addEventListener('click', nextSong);
+
+  /* 新开一局：停掉全曲、清空抽题袋、回到难度选择 */
+  rRestart.addEventListener('click', () => {
+    stopFull();
+    resetPlayUI();
+    bag = [];
+    lastShown = null;
+    state.tier = null;
+    state.song = null;
+    reveal.classList.remove('show');
+    reveal.setAttribute('aria-hidden', 'true');
+    showStart();
+  });
+
+  /* ── 难度选择 ─────────────────────────────────────────── */
+  function showStart() {
+    startScreen.classList.remove('hide');
+    startScreen.setAttribute('aria-hidden', 'false');
+  }
+
+  function chooseTier(tier) {
+    state.tier = tier;
+    startScreen.classList.add('hide');
+    startScreen.setAttribute('aria-hidden', 'true');
+    nextSong();
+  }
+
+  tiers.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-tier]');
+    if (!btn) return;
+    const tier = Number(btn.dataset.tier);
+    if (DIFF_SEC[tier]) chooseTier(tier);
+  });
+
+  tierBtn.addEventListener('click', showStart);
+
+  $('stReset').addEventListener('click', () => {
+    stats.hit = 0;
+    stats.miss = 0;
+    stats.skip = 0;
+    renderStats();
+    saveStats();
+    toast('统计已清零');
+  });
+
+  /* ── 启动 ─────────────────────────────────────────────── */
+  renderStats();
+
+  (function bootBadge() {
+    const n = playable().length;
+    const total = SONGS.length;
+    $('libBadge').textContent = n
+      ? '可玩 ' + n + ' 首' + (total > n ? ' · 曲库 ' + total + ' 首' : '')
+      : '曲库为空';
+  })();
+
+  nextSong();
+})();
+</script>
+</body>
+</html>
